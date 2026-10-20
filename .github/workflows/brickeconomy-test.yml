@@ -1,0 +1,19 @@
+name: Tester la connexion BrickEconomy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v4
+      - name: Installer Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Tester l'API
+        env:
+          BRICKECONOMY_API_KEY: ${{ secrets.BRICKECONOMY_API_KEY }}
+        run: python scripts/test_brickeconomy.py

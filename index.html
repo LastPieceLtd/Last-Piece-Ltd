@@ -168,5 +168,36 @@ $('backupFile').onchange=async event=>{
 const oldRender=render;
 render=function(){oldRender();renderOpportunities()};
 
-render();loadCatalog();loadBrickEconomy();
+// V5.2 : fiche connectée aux estimations BrickEconomy, sans confondre estimation et vente réelle.
+const openSetWithMarketEntry=openSet;
+openSet=function(id){
+ openSetWithMarketEntry(id);
+ const m=brickData[id];
+ if(!m || m.current_value_new==null || !$('detail') || $('detail').classList.contains('hidden'))return;
+ const section=document.createElement('section');
+ section.className='market-entry';
+ section.innerHTML=`<h3>📈 Analyse automatique BrickEconomy · ${esc(id)}</h3>
+ <p class="hint">Estimations de valeur pour un set neuf, et non prix de ventes conclues. Les prévisions ne sont pas garanties.</p>
+ <div class="detailgrid"><div>
+ ${[['Valeur actuelle estimée',eur(m.current_value_new)],['Croissance sur 12 mois',Number.isFinite(m.growth_12m)?m.growth_12m+' %':'Non disponible'],['Valeur prévue dans 2 ans',m.forecast_2y==null?'Non disponible':eur(m.forecast_2y)],['Valeur prévue dans 5 ans',m.forecast_5y==null?'Non disponible':eur(m.forecast_5y)],['Statut catalogue',m.retired===true?'Retiré':m.retired===false?'Commercialisé':'Non précisé'],['Dernière actualisation',(m.updated||'').slice(0,10)||'Inconnue']].map(([k,v])=>`<div class="row"><span class="muted">${esc(k)}</span><b>${esc(v)}</b></div>`).join('')}
+ </div><div class="control"><h3>Simulation avec estimation BrickEconomy</h3>
+ <label>Prix d'achat réel ou envisagé (€)</label><input class="field" id="be-buy" type="number" min="0" step="0.01" placeholder="Saisissez votre prix d'achat">
+ <label>Frais de revente estimés (€)</label><input class="field" id="be-fees" type="number" min="0" step="0.01" value="20">
+ <p class="notice" id="be-margin">Saisissez votre prix d'achat pour estimer la marge.</p></div></div>`;
+ const anchor=$('detail').querySelector('.market-entry');
+ if(anchor)anchor.before(section);else $('detail').appendChild(section);
+ const buy=$('be-buy'),fees=$('be-fees'),result=$('be-margin');
+ const known=all().find(s=>s.id===id)?.buy;
+ if(Number.isFinite(known))buy.value=known;
+ function calculate(){
+  if(buy.value.trim()===''||fees.value.trim()===''){result.textContent='Saisissez votre prix d’achat et les frais.';return}
+  const b=Number(buy.value),f=Number(fees.value);
+  if(!Number.isFinite(b)||b<=0||!Number.isFinite(f)||f<0){result.textContent='Saisissez des montants valides (achat supérieur à zéro).';return}
+  const margin=m.current_value_new-b-f;
+  result.textContent=`Marge indicative sur valeur actuelle : ${eur(margin)} (${(100*margin/b).toFixed(1)} % du prix d'achat). Ce n'est pas une vente garantie.`;
+ }
+ buy.oninput=calculate;fees.oninput=calculate;calculate();
+};
+// Charger le catalogue avant les données de marché pour éviter une course entre les deux requêtes.
+render();loadCatalog().then(()=>loadBrickEconomy());
 </script></body></html>

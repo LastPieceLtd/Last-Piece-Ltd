@@ -1,0 +1,32 @@
+name: Actualiser les analyses BrickEconomy
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '25 6 * * *'
+permissions:
+  contents: write
+concurrency:
+  group: brickeconomy-update
+  cancel-in-progress: false
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Interroger BrickEconomy
+        env:
+          BRICKECONOMY_API_KEY: ${{ secrets.BRICKECONOMY_API_KEY }}
+          BRICKECONOMY_BATCH: '85'
+        run: python scripts/update_brickeconomy.py
+      - name: Publier les résultats sur GitHub Pages
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/brickeconomy.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Actualiser les indicateurs BrickEconomy"
+            git push
+          fi
